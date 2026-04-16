@@ -294,6 +294,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     setLoading(false);
     st.loading = false;
+    window.dispatchEvent(new Event('roadmap:dataLoaded'));
+
+    // GA4 event
+    const activeAreas = AREAS.filter(a => st.areaOn[a]).map(a => AREA_LABEL[a]).join(', ');
+    window.gtag?.('event', 'year_loaded', {
+      year:         year,
+      fatal:        c.fatal,
+      serious:      c.serious,
+      slight:       c.slight,
+      total:        total,
+      active_areas: activeAreas,
+    });
   }
 
   function fetchYear(year, buildMarkers) {
@@ -548,6 +560,31 @@ document.addEventListener('DOMContentLoaded', function () {
       loadYear(st.selectedYear);
     }
   });
+
+  // ── Mobile bottom sheet drawer ────────────────────────────────
+  function initMobileDrawer() {
+    const sidebar = document.getElementById('sidebar');
+    const handle  = document.getElementById('mobile-handle');
+    if (!handle) return;
+
+    const toggle = () => sidebar.classList.toggle('drawer-open');
+
+    handle.addEventListener('click', toggle);
+
+    // Tapping the first sidebar section (year/layer area) also toggles when peeking
+    sidebar.addEventListener('click', e => {
+      if (window.innerWidth > 680) return;
+      if (sidebar.classList.contains('drawer-open')) return;
+      if (e.target.closest('.year-btn, .sev-btn, .area-btn, button, input, a')) return;
+      toggle();
+    });
+
+    // Auto-expand after data loads
+    window.addEventListener('roadmap:dataLoaded', () => {
+      if (window.innerWidth <= 680) sidebar.classList.add('drawer-open');
+    });
+  }
+  initMobileDrawer();
 
   // ── About overlay ──────────────────────────────────────────────
   const overlay = document.getElementById('about-overlay');
