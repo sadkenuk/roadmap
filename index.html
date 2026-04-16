@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoadMap — New Forest Road Safety</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<div id="header">
+  <div id="header-brand">
+    <div class="wordmark">Road<span>Map</span></div>
+    <div class="sub">sadken.co.uk</div>
+  </div>
+  <div id="header-stats">
+    <div class="hstat"><div class="hstat-dot fatal"></div><div class="hstat-label">Fatal</div><div class="hstat-val" id="hs-fatal">—</div></div>
+    <div class="hstat"><div class="hstat-dot serious"></div><div class="hstat-label">Serious</div><div class="hstat-val" id="hs-serious">—</div></div>
+    <div class="hstat"><div class="hstat-dot slight"></div><div class="hstat-label">Slight</div><div class="hstat-val" id="hs-slight">—</div></div>
+  </div>
+  <div id="header-right">
+    <span class="tag tag-area">New Forest</span>
+    <span class="tag tag-beta">Beta</span>
+  </div>
+</div>
+
+<div id="progress"></div>
+
+<div id="app">
+  <div id="sidebar">
+
+    <div class="sidebar-section">
+      <div class="section-label">Data Layers</div>
+
+      <div class="layer-item active" id="layer-stats19">
+        <div class="layer-header">
+          <div class="layer-toggle" id="toggle-stats19"></div>
+          <div class="layer-name">STATS19 Collisions</div>
+          <span class="layer-badge badge-active">DfT</span>
+        </div>
+        <div class="layer-body">
+          <div class="control-row">
+            <div class="control-label">Severity</div>
+            <div class="sev-toggles">
+              <div class="sev-btn" id="sev-fatal">
+                <div class="sev-pip fatal"></div>
+                <div class="sev-text">Fatal</div>
+                <div class="sev-count" id="cnt-fatal">0</div>
+              </div>
+              <div class="sev-btn" id="sev-serious">
+                <div class="sev-pip serious"></div>
+                <div class="sev-text">Serious</div>
+                <div class="sev-count" id="cnt-serious">0</div>
+              </div>
+              <div class="sev-btn" id="sev-slight">
+                <div class="sev-pip slight"></div>
+                <div class="sev-text">Slight</div>
+                <div class="sev-count" id="cnt-slight">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="control-row">
+            <div class="control-label">Year</div>
+            <div class="year-selector" id="yr-single"></div>
+            <div class="multi-toggle" id="multi-toggle">
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                <path d="M2 1l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Load date range (slower)
+            </div>
+            <div id="yr-range-panel" style="display:none">
+              <div class="control-label" style="margin:8px 0 4px">From</div>
+              <div class="year-selector" id="yr-from"></div>
+              <div class="control-label" style="margin:8px 0 4px">To</div>
+              <div class="year-selector" id="yr-to"></div>
+            </div>
+          </div>
+
+          <button class="load-btn" id="load-btn">Load Data</button>
+          <button class="clear-btn" id="clear-btn" style="display:none">Clear Map</button>
+
+          <div class="data-note">
+            Police-recorded injury collisions from the
+            <a href="https://www.gov.uk/government/statistical-data-sets/road-safety-open-data" target="_blank">DfT STATS19 open dataset</a>,
+            filtered to the New Forest area. Open Government Licence.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Coming Soon</div>
+      <div class="cs-item"><div class="cs-icon">🚗</div><div class="cs-name">Speedwatch Sessions</div><div class="cs-tag">PLANNED</div></div>
+      <div class="cs-item"><div class="cs-icon">💨</div><div class="cs-name">Air Quality Sensors</div><div class="cs-tag">PLANNED</div></div>
+      <div class="cs-item"><div class="cs-icon">🚧</div><div class="cs-name">Street Manager Roadworks</div><div class="cs-tag">PLANNED</div></div>
+      <div class="cs-item"><div class="cs-icon">🌡️</div><div class="cs-name">Weather Correlation</div><div class="cs-tag">PLANNED</div></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">About</div>
+      <p class="about-text">
+        A community road safety tool for <strong>Lyndhurst &amp; the New Forest</strong>.
+        Built to help residents and the parish council make evidence-based decisions.
+        Data sourced from the <a href="https://www.gov.uk/government/statistical-data-sets/road-safety-open-data" target="_blank">DfT STATS19 open dataset</a>
+        under the Open Government Licence. Part of the <strong>sadken.co.uk</strong> community data project.
+      </p>
+    </div>
+
+  </div>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loading-text">Fetching collision data…</div>
+      <div class="loading-sub"  id="loading-sub">Filtering to New Forest area</div>
+    </div>
+  </div>
+</div>
+
+<div id="statusbar">
+  <div id="status-msg"><span class="pulse"></span>Ready — select a year and click Load Data</div>
+  <div class="status-coord" id="coord"></div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
