@@ -220,12 +220,33 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg);
 .trend-prev  { font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); }
 
 .trend-change { font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-align: right; white-space: nowrap; }
+.trend-area-note { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.05em; margin-left: auto; }
 .trend-good  { color: #4caf7d; }
 .trend-bad   { color: var(--fatal); }
 .trend-flat  { color: var(--text-dim); }
 
 /* ── LAYER TOGGLE (disabled while only one layer) ── */
 .layer-toggle-disabled { opacity: 0.2; pointer-events: none; cursor: default; }
+
+/* ── AREA TOGGLES ── */
+.area-toggles { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.area-btn {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: var(--radius); cursor: pointer; user-select: none;
+  border: 1px solid var(--border); background: var(--panel-hover);
+  transition: border-color 0.15s, opacity 0.15s;
+}
+.area-btn:hover { border-color: var(--accent); }
+.area-btn.off { opacity: 0.38; }
+.area-pip {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+  border: 1.5px solid var(--accent); background: rgba(77,157,224,0.18);
+}
+.area-btn.off .area-pip { border-color: var(--text-dim); background: transparent; }
+.area-text { font-size: 11px; color: var(--text); flex: 1; }
+.area-btn.off .area-text { color: var(--text-muted); }
+.area-count { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent); min-width: 32px; text-align: right; }
+.area-btn.off .area-count { color: var(--text-dim); }
 
 /* ── ABOUT OVERLAY ── */
 .about-overlay {

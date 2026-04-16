@@ -1,4 +1,4 @@
-// RoadMap — DfT STATS19 collision viewer for the New Forest
+// RoadMap — DfT STATS19 collision viewer for Hampshire
 // Data proxied via /dft/ nginx route — no third-party CORS proxy needed
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -15,10 +15,13 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ── Constants ──────────────────────────────────────────────────
-  const LYNDHURST = [50.8726, -1.5707];
-  const YEARS     = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+  const LYNDHURST  = [50.8726, -1.5707];
+  // Candidate years — probed at startup, unavailable ones hidden automatically
+  const YEARS      = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+  const AREAS      = ['hampshire', 'southampton', 'portsmouth'];
+  const AREA_LABEL = { hampshire: 'Hampshire', southampton: 'Southampton City', portsmouth: 'Portsmouth City' };
 
-  // Expanded to cover all of Hampshire
+  // Bounding box covering Hampshire + Southampton + Portsmouth
   const BB = { n: 51.35, s: 50.68, e: -0.87, w: -1.95 };
 
   const SEV = {
@@ -51,49 +54,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── State ──────────────────────────────────────────────────────
   const st = {
-    selectedYear:  YEARS[YEARS.length - 1],
-    vis:           { fatal: true, serious: true, slight: true },
-    layerOn:       true,
-    yearCounts:    {},
-    loading:       false,
-    hampshireRings: [],   // extracted polygon rings for point-in-polygon test
+    selectedYear: YEARS[YEARS.length - 1],
+    vis:          { fatal: true, serious: true, slight: true },
+    layerOn:      true,
+    areaOn:       { hampshire: true, southampton: true, portsmouth: true },
+    areaCounts:   {},   // { year: { area: { fatal, serious, slight } } }
+    loading:      false,
+    areaRings:    { hampshire: [], southampton: [], portsmouth: [] },
   };
 
   // ── Point-in-polygon (ray casting) ────────────────────────────
-  // GeoJSON coords are [lng, lat] — we test against [lat, lng] from CSV
-  function extractRings(geojson) {
-    const rings = [];
+  function extractAreaRings(geojson) {
+    const rings = { hampshire: [], southampton: [], portsmouth: [] };
     geojson.features.forEach(f => {
+      const name = (f.properties.CTYUA23NM || '').toLowerCase();
+      const key  = name === 'hampshire'   ? 'hampshire'
+                 : name === 'southampton' ? 'southampton'
+                 : name === 'portsmouth'  ? 'portsmouth' : null;
+      if (!key) return;
       const g = f.geometry;
       if (g.type === 'Polygon') {
-        rings.push(g.coordinates[0]);       // outer ring only
+        rings[key].push(g.coordinates[0]);
       } else if (g.type === 'MultiPolygon') {
-        g.coordinates.forEach(poly => rings.push(poly[0]));
+        g.coordinates.forEach(poly => rings[key].push(poly[0]));
       }
     });
     return rings;
   }
 
-  function inHampshire(lat, lng) {
-    if (!st.hampshireRings.length) return true;  // fallback: allow all if not loaded
-    return st.hampshireRings.some(ring => {
-      let inside = false;
-      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        const xi = ring[i][0], yi = ring[i][1];  // [lng, lat]
-        const xj = ring[j][0], yj = ring[j][1];
-        if (((yi > lat) !== (yj > lat)) &&
-            (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
-          inside = !inside;
-        }
+  function pointInRing(lat, lng, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1];   // GeoJSON: [lng, lat]
+      const xj = ring[j][0], yj = ring[j][1];
+      if (((yi > lat) !== (yj > lat)) &&
+          (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+        inside = !inside;
       }
-      return inside;
-    });
+    }
+    return inside;
   }
 
-  const mGroups = { fatal: null, serious: null, slight: null };
+  function whichArea(lat, lng) {
+    for (const area of AREAS) {
+      if (st.areaRings[area].some(ring => pointInRing(lat, lng, ring))) return area;
+    }
+    return null;  // outside all three
+  }
+
+  // ── Marker groups (per area × severity) ───────────────────────
+  const mGroups = {
+    hampshire:   { fatal: null, serious: null, slight: null },
+    southampton: { fatal: null, serious: null, slight: null },
+    portsmouth:  { fatal: null, serious: null, slight: null },
+  };
+
+  const boundaryLayers = { hampshire: null, southampton: null, portsmouth: null };
 
   // ── Map ────────────────────────────────────────────────────────
-  // Constrain to Hampshire — no point panning to wider UK
   const BOUNDS = L.latLngBounds(
     [BB.s - 0.05, BB.w - 0.1],
     [BB.n + 0.05, BB.e + 0.1]
@@ -102,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const map = L.map('map', {
     center:     LYNDHURST,
     zoom:       10,
-    minZoom:    7,        // will be tightened dynamically below
+    minZoom:    7,
     maxZoom:    18,
     maxBounds:  BOUNDS,
     maxBoundsViscosity: 1.0,
@@ -110,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function () {
     attributionControl: true,
   });
 
-  // Lock minZoom so user can't zoom out beyond Hampshire boundary
+  // Lock minZoom so user can't zoom out beyond Hampshire
   map.whenReady(() => {
     map.setMinZoom(map.getBoundsZoom(BOUNDS));
   });
@@ -122,26 +140,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  L.circleMarker(LYNDHURST, {
-    radius: 6, color: '#4d9de0', fillColor: '#4d9de0', fillOpacity: 0.9, weight: 2,
-  }).bindTooltip('Lyndhurst', { permanent: false, direction: 'right' }).addTo(map);
+  // ── Boundary layers (one per area) ────────────────────────────
+  const BOUNDARY_STYLE = {
+    color: '#4d9de0', weight: 1.5, opacity: 1.0,
+    fillColor: '#4d9de0', fillOpacity: 0.04, dashArray: '4 4',
+  };
 
-  // ── Hampshire boundary ─────────────────────────────────────────
-  // Bundled locally — no external dependency, always loads instantly
   fetch('/data/hampshire.geojson')
     .then(r => r.json())
     .then(geojson => {
-      st.hampshireRings = extractRings(geojson);
-      L.geoJSON(geojson, {
-        style: {
-          color:       '#4d9de0',
-          weight:      1.5,
-          opacity:     1.0,
-          fillColor:   '#4d9de0',
-          fillOpacity: 0.04,
-          dashArray:   '4 4',
-        },
-      }).addTo(map);
+      st.areaRings = extractAreaRings(geojson);
+      geojson.features.forEach(f => {
+        const name = (f.properties.CTYUA23NM || '').toLowerCase();
+        const key  = name === 'hampshire'   ? 'hampshire'
+                   : name === 'southampton' ? 'southampton'
+                   : name === 'portsmouth'  ? 'portsmouth' : null;
+        if (!key) return;
+        boundaryLayers[key] = L.geoJSON(
+          { type: 'FeatureCollection', features: [f] },
+          { style: BOUNDARY_STYLE }
+        ).addTo(map);
+      });
     })
     .catch(() => {
       // Boundary is cosmetic — silently ignore if fetch fails
@@ -172,14 +191,52 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ── Layer toggle — disabled (only one layer currently) ────────
+  // ── Area toggles ───────────────────────────────────────────────
+  AREAS.forEach(area => {
+    document.getElementById(`area-${area}`).addEventListener('click', () => {
+      st.areaOn[area] = !st.areaOn[area];
+      document.getElementById(`area-${area}`).classList.toggle('off', !st.areaOn[area]);
 
+      // Boundary line
+      if (boundaryLayers[area]) {
+        st.areaOn[area]
+          ? boundaryLayers[area].addTo(map)
+          : map.removeLayer(boundaryLayers[area]);
+      }
+
+      // Markers
+      ['fatal', 'serious', 'slight'].forEach(k => {
+        if (!mGroups[area][k]) return;
+        st.vis[k] && st.layerOn && st.areaOn[area]
+          ? mGroups[area][k].addTo(map)
+          : map.removeLayer(mGroups[area][k]);
+      });
+
+      // Refresh counts + trend
+      if (st.selectedYear) {
+        updateHeaderCounts(st.selectedYear);
+        updateSidebarCounts(st.selectedYear);
+        const prevYear = st.selectedYear - 1;
+        renderTrend(st.selectedYear,
+          YEARS.includes(prevYear) && st.areaCounts[prevYear] ? prevYear : null);
+      }
+    });
+  });
+
+  // ── Layer toggle — disabled (only one data layer currently) ────
+  // (re-enable when a second layer is added)
+
+  // ── Severity toggles ───────────────────────────────────────────
   ['fatal', 'serious', 'slight'].forEach(k => {
     document.getElementById(`sev-${k}`).addEventListener('click', () => {
       st.vis[k] = !st.vis[k];
       document.getElementById(`sev-${k}`).classList.toggle('off', !st.vis[k]);
-      if (!mGroups[k]) return;
-      st.vis[k] && st.layerOn ? mGroups[k].addTo(map) : map.removeLayer(mGroups[k]);
+      AREAS.forEach(area => {
+        if (!mGroups[area][k]) return;
+        st.vis[k] && st.layerOn && st.areaOn[area]
+          ? mGroups[area][k].addTo(map)
+          : map.removeLayer(mGroups[area][k]);
+      });
     });
   });
 
@@ -187,26 +244,26 @@ document.addEventListener('DOMContentLoaded', function () {
   async function loadYear(year) {
     st.loading = true;
     clearMarkers();
-    setLoading(true, `Loading ${year}…`, 'Filtering to New Forest area');
+    setLoading(true, `Loading ${year}…`, 'Filtering to Hampshire area');
     setProgress(5);
 
-    mGroups.fatal   = makeClusterGroup('fatal',   '#ff3b30');
-    mGroups.serious = makeClusterGroup('serious', '#ff9500');
-    mGroups.slight  = makeClusterGroup('slight',  '#ffd60a');
+    // Initialise fresh cluster groups for every area × severity
+    AREAS.forEach(area => {
+      mGroups[area].fatal   = makeClusterGroup('fatal',   '#ff3b30');
+      mGroups[area].serious = makeClusterGroup('serious', '#ff9500');
+      mGroups[area].slight  = makeClusterGroup('slight',  '#ffd60a');
+    });
 
-    // Always fetch selected year + previous for trend comparison
     const prevYear = year - 1;
     const hasPrev  = YEARS.includes(prevYear);
 
     try {
-      // Fetch selected year (builds map markers + counts)
       await fetchYear(year, true);
       setProgress(hasPrev ? 60 : 95);
 
-      // Fetch previous year (counts only — no markers)
       if (hasPrev) {
         setLoadingText(`Loading ${prevYear} for comparison…`, '');
-        if (!st.yearCounts[prevYear]) {
+        if (!st.areaCounts[prevYear]) {
           await fetchYear(prevYear, false);
         }
         setProgress(95);
@@ -215,21 +272,25 @@ document.addEventListener('DOMContentLoaded', function () {
       status(`⚠ Error: ${err.message}`, true);
     }
 
-    // Add map layers
-    ['fatal', 'serious', 'slight'].forEach(k => {
-      if (st.layerOn && st.vis[k]) mGroups[k].addTo(map);
+    // Add map layers for all active area × severity combinations
+    AREAS.forEach(area => {
+      ['fatal', 'serious', 'slight'].forEach(k => {
+        if (st.layerOn && st.vis[k] && st.areaOn[area]) mGroups[area][k].addTo(map);
+      });
     });
 
     updateHeaderCounts(year);
     updateSidebarCounts(year);
+    updateAreaCounts(year);
     renderTrend(year, hasPrev ? prevYear : null);
 
     setProgress(100);
     setTimeout(() => setProgress(0), 600);
 
-    const c = st.yearCounts[year] || { fatal: 0, serious: 0, slight: 0 };
+    const c = getActiveCounts(year);
     const total = c.fatal + c.serious + c.slight;
-    status(`${total.toLocaleString()} collisions in ${year} · Hampshire inc. Southampton &amp; Portsmouth`);
+    const activeLabels = AREAS.filter(a => st.areaOn[a]).map(a => AREA_LABEL[a]).join(', ');
+    status(`${total.toLocaleString()} collisions in ${year} · ${activeLabels}`);
 
     setLoading(false);
     st.loading = false;
@@ -239,7 +300,13 @@ document.addEventListener('DOMContentLoaded', function () {
     return new Promise((resolve, reject) => {
       const url = `/dft/road-accidents-safety-data/dft-road-casualty-statistics-collision-${year}.csv`;
       let rows = 0;
-      st.yearCounts[year] = { fatal: 0, serious: 0, slight: 0 };
+
+      // Initialise per-area counts for this year
+      st.areaCounts[year] = {
+        hampshire:   { fatal: 0, serious: 0, slight: 0 },
+        southampton: { fatal: 0, serious: 0, slight: 0 },
+        portsmouth:  { fatal: 0, serious: 0, slight: 0 },
+      };
 
       Papa.parse(url, {
         download: true, header: true, skipEmptyLines: true,
@@ -250,11 +317,12 @@ document.addEventListener('DOMContentLoaded', function () {
           const lon = parseFloat(r.longitude);
           if (!isNaN(lat) && !isNaN(lon) &&
               lat >= BB.s && lat <= BB.n &&
-              lon >= BB.w && lon <= BB.e &&
-              inHampshire(lat, lon)) {
+              lon >= BB.w && lon <= BB.e) {
+            const area = whichArea(lat, lon);
+            if (!area) return;   // outside all three areas
             const sev = SEV[r.accident_severity] || SEV['3'];
-            st.yearCounts[year][sev.key]++;
-            if (buildMarkers) mGroups[sev.key].addLayer(makeMarker(r, sev));
+            st.areaCounts[year][area][sev.key]++;
+            if (buildMarkers) mGroups[area][sev.key].addLayer(makeMarker(r, sev));
           }
           if (rows % 10000 === 0) {
             status(`Scanning ${year}… ${rows.toLocaleString()} rows`);
@@ -266,11 +334,49 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // ── Counts helpers ─────────────────────────────────────────────
+  function getActiveCounts(year) {
+    const counts = { fatal: 0, serious: 0, slight: 0 };
+    const ac = st.areaCounts[year] || {};
+    AREAS.forEach(area => {
+      if (!st.areaOn[area]) return;
+      const c = ac[area] || { fatal: 0, serious: 0, slight: 0 };
+      counts.fatal   += c.fatal;
+      counts.serious += c.serious;
+      counts.slight  += c.slight;
+    });
+    return counts;
+  }
+
+  function updateHeaderCounts(year) {
+    const c = getActiveCounts(year);
+    document.getElementById('hs-fatal').textContent   = c.fatal   || '—';
+    document.getElementById('hs-serious').textContent = c.serious || '—';
+    document.getElementById('hs-slight').textContent  = c.slight  || '—';
+  }
+
+  function updateSidebarCounts(year) {
+    const c = getActiveCounts(year);
+    document.getElementById('cnt-fatal').textContent   = c.fatal.toLocaleString();
+    document.getElementById('cnt-serious').textContent = c.serious.toLocaleString();
+    document.getElementById('cnt-slight').textContent  = c.slight.toLocaleString();
+  }
+
+  function updateAreaCounts(year) {
+    const ac = st.areaCounts[year] || {};
+    AREAS.forEach(area => {
+      const c = ac[area] || { fatal: 0, serious: 0, slight: 0 };
+      const total = c.fatal + c.serious + c.slight;
+      const el = document.getElementById(`acnt-${area}`);
+      if (el) el.textContent = total.toLocaleString();
+    });
+  }
+
   // ── Trend panel ────────────────────────────────────────────────
   function renderTrend(year, prevYear) {
     const panel = document.getElementById('trend-panel');
-    const c     = st.yearCounts[year]     || { fatal: 0, serious: 0, slight: 0 };
-    const p     = prevYear ? (st.yearCounts[prevYear] || { fatal: 0, serious: 0, slight: 0 }) : null;
+    const c     = getActiveCounts(year);
+    const p     = prevYear ? getActiveCounts(prevYear) : null;
 
     const rows = ['fatal', 'serious', 'slight'].map(k => {
       const cur  = c[k];
@@ -278,10 +384,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const diff = prev !== null ? cur - prev : null;
       const pct  = (prev && prev > 0) ? Math.round((diff / prev) * 100) : null;
 
-      // For road safety: down = good (green), up = bad (red)
       let changeHtml = '';
       if (diff !== null) {
-        const dir   = diff < 0 ? 'down' : diff > 0 ? 'up' : 'flat';
         const arrow = diff < 0 ? '↓' : diff > 0 ? '↑' : '→';
         const cls   = diff < 0 ? 'trend-good' : diff > 0 ? 'trend-bad' : 'trend-flat';
         const label = diff === 0 ? 'No change'
@@ -309,12 +413,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalCls  = totalDiff < 0 ? 'trend-good' : totalDiff > 0 ? 'trend-bad' : 'trend-flat';
     const totalArrow = totalDiff < 0 ? '↓' : totalDiff > 0 ? '↑' : '→';
 
+    const activeCount = AREAS.filter(a => st.areaOn[a]).length;
+    const areaNote = activeCount < AREAS.length
+      ? `<span class="trend-area-note">${activeCount} of 3 areas active</span>` : '';
+
     document.getElementById('trend-section').style.display = 'block';
     panel.innerHTML = `
       <div class="trend-header">
         <span class="trend-year">${year}</span>
         ${prevYear ? `<span class="trend-vs">vs ${prevYear}</span>` : ''}
         ${totalDiff !== null ? `<span class="trend-total ${totalCls}">${totalArrow} ${Math.abs(totalDiff)} total (${totalPct !== null ? (totalPct > 0 ? '+' : '') + totalPct + '%' : ''})</span>` : ''}
+        ${areaNote}
       </div>
       ${rows}
     `;
@@ -390,23 +499,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── UI helpers ─────────────────────────────────────────────────
   function clearMarkers() {
-    ['fatal', 'serious', 'slight'].forEach(k => {
-      if (mGroups[k]) { map.removeLayer(mGroups[k]); mGroups[k] = null; }
+    AREAS.forEach(area => {
+      ['fatal', 'serious', 'slight'].forEach(k => {
+        if (mGroups[area][k]) { map.removeLayer(mGroups[area][k]); mGroups[area][k] = null; }
+      });
     });
-  }
-
-  function updateHeaderCounts(year) {
-    const c = st.yearCounts[year] || { fatal: 0, serious: 0, slight: 0 };
-    document.getElementById('hs-fatal').textContent   = c.fatal   || '—';
-    document.getElementById('hs-serious').textContent = c.serious || '—';
-    document.getElementById('hs-slight').textContent  = c.slight  || '—';
-  }
-
-  function updateSidebarCounts(year) {
-    const c = st.yearCounts[year] || { fatal: 0, serious: 0, slight: 0 };
-    document.getElementById('cnt-fatal').textContent   = c.fatal.toLocaleString();
-    document.getElementById('cnt-serious').textContent = c.serious.toLocaleString();
-    document.getElementById('cnt-slight').textContent  = c.slight.toLocaleString();
   }
 
   function setLoading(show, text, sub) {
@@ -432,8 +529,12 @@ document.addEventListener('DOMContentLoaded', function () {
     return `${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)}`;
   }
 
-  // Keyboard: left/right arrows to step through years
+  // ── Keyboard navigation ────────────────────────────────────────
   document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.getElementById('about-overlay').classList.add('hidden');
+      return;
+    }
     if (st.loading) return;
     const idx = YEARS.indexOf(st.selectedYear);
     if (e.key === 'ArrowRight' && idx < YEARS.length - 1) {
@@ -447,7 +548,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // ── About overlay ─────────────────────────────────────────────
+  // ── About overlay ──────────────────────────────────────────────
   const overlay = document.getElementById('about-overlay');
   document.getElementById('btn-about').addEventListener('click', () => {
     overlay.classList.remove('hidden');
@@ -458,9 +559,6 @@ document.addEventListener('DOMContentLoaded', function () {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.classList.add('hidden');
   });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') overlay.classList.add('hidden');
-  });
 
   // Show about on first visit
   if (!localStorage.getItem('rm-about-seen')) {
@@ -468,9 +566,34 @@ document.addEventListener('DOMContentLoaded', function () {
     localStorage.setItem('rm-about-seen', '1');
   }
 
+  // ── Probe available years ──────────────────────────────────────
+  // HEAD-check each candidate year; remove buttons for 404s
+  async function probeYears() {
+    const BASE = '/dft/road-accidents-safety-data/dft-road-casualty-statistics-collision-';
+    const results = await Promise.all(
+      [...YEARS].map(y =>
+        fetch(`${BASE}${y}.csv`, { method: 'HEAD' })
+          .then(r => r.ok ? y : null)
+          .catch(() => null)
+      )
+    );
+    const available = results.filter(y => y !== null);
+    if (available.length && available.length !== YEARS.length) {
+      YEARS.length = 0;
+      available.forEach(y => YEARS.push(y));
+      // Clamp selected year to what's available
+      if (!YEARS.includes(st.selectedYear)) {
+        st.selectedYear = YEARS[YEARS.length - 1];
+      }
+      buildYearSelector();
+    }
+  }
+
   // ── Init ───────────────────────────────────────────────────────
   buildYearSelector();
   status(`Loading ${st.selectedYear} data…`);
+  // Probe years in parallel with the first data load
+  probeYears();
   loadYear(st.selectedYear);
 
 }); // end DOMContentLoaded
