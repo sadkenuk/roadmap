@@ -46,6 +46,9 @@ jobs:
             exit 0
           fi
 
+          # Wait for new container to be fully serving before purging
+          sleep 10
+
           # Purge specific assets for roadmap.sadken.co.uk
           RESULT=$(curl -sf -X POST \
             "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/purge_cache" \
