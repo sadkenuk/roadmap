@@ -229,23 +229,44 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg);
 .layer-toggle-disabled { opacity: 0.2; pointer-events: none; cursor: default; }
 
 /* ── AREA TOGGLES ── */
-.area-toggles { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.area-toggles { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
 .area-btn {
-  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px;
   border-radius: var(--radius); cursor: pointer; user-select: none;
   border: 1px solid var(--border); background: var(--panel-hover);
-  transition: border-color 0.15s, opacity 0.15s;
+  transition: border-color 0.15s, background 0.15s;
 }
-.area-btn:hover { border-color: var(--accent); }
-.area-btn.off { opacity: 0.38; }
-.area-pip {
-  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
-  border: 1.5px solid var(--accent); background: rgba(77,157,224,0.18);
+.area-btn:hover { border-color: var(--accent); background: rgba(77,157,224,0.06); }
+
+/* Toggle switch */
+.area-switch {
+  flex-shrink: 0;
+  width: 30px; height: 17px; border-radius: 9px;
+  background: var(--accent);
+  position: relative;
+  transition: background 0.2s;
 }
-.area-btn.off .area-pip { border-color: var(--text-dim); background: transparent; }
+.area-switch::after {
+  content: '';
+  position: absolute; top: 2.5px; left: 2.5px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+.area-btn.off .area-switch {
+  background: var(--border-light);
+}
+.area-btn:not(.off) .area-switch::after {
+  transform: translateX(13px);
+}
+
 .area-text { font-size: 11px; color: var(--text); flex: 1; }
 .area-btn.off .area-text { color: var(--text-muted); }
-.area-count { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent); min-width: 32px; text-align: right; }
+.area-count {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  color: var(--accent); min-width: 34px; text-align: right;
+}
 .area-btn.off .area-count { color: var(--text-dim); }
 
 /* ── ABOUT OVERLAY ── */
