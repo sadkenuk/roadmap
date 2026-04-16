@@ -320,7 +320,8 @@ document.addEventListener('DOMContentLoaded', function () {
               lon >= BB.w && lon <= BB.e) {
             const area = whichArea(lat, lon);
             if (!area) return;   // outside all three areas
-            const sev = SEV[r.accident_severity] || SEV['3'];
+            // DfT renamed accident_severity → collision_severity in ~2022 data
+            const sev = SEV[r.collision_severity] || SEV[r.accident_severity] || SEV['3'];
             st.areaCounts[year][area][sev.key]++;
             if (buildMarkers) mGroups[area][sev.key].addLayer(makeMarker(r, sev));
           }
@@ -473,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function () {
       <div class="popup-row"><div class="popup-icon">☀️</div><div class="popup-val">${d.light} · ${d.weather}</div></div>
       <div class="popup-row"><div class="popup-icon">🛤️</div><div class="popup-val">Surface: ${d.surface}</div></div>
       ${r.urban_or_rural_area ? `<div class="popup-row"><div class="popup-icon">🗺️</div><div class="popup-val">${r.urban_or_rural_area === '1' ? 'Urban' : 'Rural'} area</div></div>` : ''}
-      <div class="popup-ref">REF: ${r.accident_reference || r.accident_index || 'N/A'}</div>
+      <div class="popup-ref">REF: ${r.collision_index || r.accident_reference || r.accident_index || 'N/A'}</div>
     </div>`;
   }
 
