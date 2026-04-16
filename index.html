@@ -32,7 +32,7 @@
     <div class="hstat"><div class="hstat-dot slight"></div><div class="hstat-label">Slight</div><div class="hstat-val" id="hs-slight">—</div></div>
   </div>
   <div id="header-right">
-    <span class="tag tag-area">New Forest</span>
+    <span class="tag tag-area">Hampshire</span>
     <span class="tag tag-beta">Beta</span>
   </div>
 </div>
@@ -74,32 +74,22 @@
           </div>
 
           <div class="control-row">
-            <div class="control-label">Year</div>
-            <div class="year-selector" id="yr-single"></div>
-            <div class="multi-toggle" id="multi-toggle">
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                <path d="M2 1l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Load date range (slower)
-            </div>
-            <div id="yr-range-panel" style="display:none">
-              <div class="control-label" style="margin:8px 0 4px">From</div>
-              <div class="year-selector" id="yr-from"></div>
-              <div class="control-label" style="margin:8px 0 4px">To</div>
-              <div class="year-selector" id="yr-to"></div>
-            </div>
+            <div class="control-label">Year — tap to load</div>
+            <div class="year-selector" id="yr-selector"></div>
           </div>
 
-          <button class="load-btn" id="load-btn">Load Data</button>
-          <button class="clear-btn" id="clear-btn" style="display:none">Clear Map</button>
-
           <div class="data-note">
-            Police-recorded injury collisions from the
+            Injury collisions from the
             <a href="https://www.gov.uk/government/statistical-data-sets/road-safety-open-data" target="_blank">DfT STATS19 open dataset</a>,
-            filtered to the New Forest area. Open Government Licence.
+            filtered to Hampshire. Open Government Licence.
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="sidebar-section" id="trend-section">
+      <div class="section-label">Year on Year</div>
+      <div id="trend-panel"></div>
     </div>
 
     <div class="sidebar-section">

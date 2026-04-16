@@ -192,6 +192,36 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg);
 .marker-cluster { background: transparent !important; }
 .marker-cluster div { font-family: var(--font-mono) !important; font-size: 11px !important; font-weight: 700 !important; }
 
+/* ── TREND PANEL ── */
+
+.trend-header {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.trend-year { font-family: var(--font-head); font-weight: 800; font-size: 18px; color: var(--text); }
+.trend-vs   { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+.trend-total { font-family: var(--font-mono); font-size: 10px; font-weight: 700; margin-left: auto; }
+
+.trend-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.trend-row:last-child { border-bottom: none; }
+
+.trend-sev   { font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.trend-counts { display: flex; flex-direction: column; gap: 1px; }
+.trend-cur   { font-family: var(--font-mono); font-size: 16px; font-weight: 700; line-height: 1; }
+.trend-prev  { font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); }
+
+.trend-change { font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-align: right; white-space: nowrap; }
+.trend-good  { color: #4caf7d; }
+.trend-bad   { color: var(--fatal); }
+.trend-flat  { color: var(--text-dim); }
+
 /* ── MOBILE ── */
 @media (max-width: 680px) {
   :root { --panel-w: 260px; }

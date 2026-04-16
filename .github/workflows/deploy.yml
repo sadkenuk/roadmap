@@ -3,7 +3,7 @@ name: Deploy to roadmap.sadken.co.uk
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  workflow_dispatch:    # also allows manual trigger from GitHub UI
 
 jobs:
   deploy:
@@ -21,6 +21,10 @@ jobs:
           key:      ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
+
+            # Pull latest code
             cd ~/apps/roadmap
             git pull origin main
+
+            # Run the universal deploy script
             ~/homeserver/deploy.sh ~/apps/roadmap
