@@ -50,6 +50,47 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg);
 .hstat-dot.slight  { background: var(--slight);  box-shadow: 0 0 6px var(--slight-glow); }
 .hstat-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 .hstat-val   { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--text); min-width: 28px; }
+#header-search {
+  flex: 1; padding: 0 12px; display: flex; flex-direction: column;
+  justify-content: center; gap: 2px; min-width: 0;
+}
+#postcode-wrap {
+  display: flex; align-items: stretch;
+  background: var(--bg); border: 1px solid var(--border-light);
+  border-radius: 5px; overflow: hidden;
+  transition: border-color 0.15s;
+  max-width: 220px; height: 30px;
+}
+#postcode-wrap:focus-within { border-color: var(--accent); }
+#postcode-input {
+  -webkit-appearance: none; appearance: none;
+  background: transparent; border: none; outline: none;
+  color: var(--text); font-family: var(--font-mono); font-size: 12px;
+  padding: 0 8px; flex: 1; min-width: 0; letter-spacing: 0.05em;
+  caret-color: var(--accent);
+}
+#postcode-input::placeholder { color: var(--text-dim); }
+#postcode-input:-webkit-autofill,
+#postcode-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px var(--bg) inset;
+  -webkit-text-fill-color: var(--text);
+}
+#postcode-clear {
+  background: none; border: none; border-left: 1px solid var(--border);
+  color: var(--text-dim); padding: 0 8px; cursor: pointer;
+  font-size: 11px; transition: color 0.15s;
+}
+#postcode-clear:hover { color: var(--text); }
+#postcode-btn {
+  background: none; border: none; border-left: 1px solid var(--border);
+  color: var(--text-muted); padding: 0 10px; cursor: pointer;
+  display: flex; align-items: center; transition: color 0.15s, background 0.15s;
+}
+#postcode-btn:hover { color: var(--accent); background: var(--accent-dim); }
+#postcode-error {
+  font-family: var(--font-mono); font-size: 10px; color: var(--fatal);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;
+}
 #header-right { padding: 0 16px; display: flex; align-items: center; gap: 10px; }
 .tag { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
 .tag-area  { color: var(--accent); border-color: rgba(77,157,224,0.3); background: var(--accent-dim); }
@@ -345,9 +386,12 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg);
 
   /* Header: tighter, hide mid-section stats */
   #header-stats { display: none; }
-  #header-brand { border-right: none; padding: 0 14px; }
-  #header-right { padding: 0 10px; gap: 6px; }
+  #header-brand { border-right: none; padding: 0 10px; flex-shrink: 0; }
+  #header-right { display: none; }
   #header { padding: 0; }
+  #header-search { padding: 0 8px 0 4px; }
+  #postcode-wrap { max-width: 100%; width: 100%; }
+  #postcode-input { font-size: 13px; }
 
   /* Map fills entire screen behind the sheet */
   #map-wrap {

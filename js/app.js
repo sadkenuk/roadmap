@@ -16,8 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── Constants ──────────────────────────────────────────────────
   const LYNDHURST  = [50.8726, -1.5707];
-  // Candidate years — probed at startup, unavailable ones hidden automatically
-  const YEARS      = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+  const YEARS      = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
   const AREAS      = ['hampshire', 'southampton', 'portsmouth'];
   const AREA_LABEL = { hampshire: 'Hampshire', southampton: 'Southampton City', portsmouth: 'Portsmouth City' };
 
@@ -322,6 +321,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       Papa.parse(url, {
         download: true, header: true, skipEmptyLines: true,
+        downloadRequestHeaders: { 'X-Requested-With': 'XMLHttpRequest' },
         step(result) {
           rows++;
           const r   = result.data;
@@ -342,7 +342,19 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         },
         complete() { resolve(rows); },
-        error(err)  { reject(new Error(String(err))); },
+        error(err, file, response) {
+          const code = response?.status;
+          if (code === 404 || code === 403) {
+            // Year doesn't exist — remove from selector silently
+            const idx = YEARS.indexOf(year);
+            if (idx !== -1) { YEARS.splice(idx, 1); buildYearSelector(); }
+            resolve(0);
+          } else if (code === 502 || code === 503 || code === 504) {
+            reject(new Error(`DfT data service is temporarily unavailable (${code}) — try again later`));
+          } else {
+            reject(new Error(String(err)));
+          }
+        },
       });
     });
   }
@@ -586,6 +598,91 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   initMobileDrawer();
 
+  // ── Postcode search ───────────────────────────────────────────
+  function initPostcodeSearch() {
+    const input     = document.getElementById('postcode-input');
+    const btn       = document.getElementById('postcode-btn');
+    const clearBtn  = document.getElementById('postcode-clear');
+    const err       = document.getElementById('postcode-error');
+    let   pinMarker = null;
+
+    function removePinMarker() {
+      if (pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
+    }
+
+    function clearSearch() {
+      input.value = '';
+      err.textContent = '';
+      clearBtn.style.display = 'none';
+      removePinMarker();
+      map.flyTo(LYNDHURST, 10, { duration: 1.2 });
+    }
+
+    // Show/hide ✕ as user types
+    input.addEventListener('input', () => {
+      clearBtn.style.display = input.value ? '' : 'none';
+      if (!input.value) err.textContent = '';
+    });
+
+    clearBtn.addEventListener('click', clearSearch);
+
+    async function search() {
+      const raw = input.value.trim().toUpperCase().replace(/\s+/g, '');
+      if (!raw) return;
+      err.textContent = '';
+      btn.disabled = true;
+
+      try {
+        const res  = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(raw)}`);
+        const json = await res.json();
+
+        if (!res.ok || json.status !== 200) {
+          err.textContent = 'Postcode not found';
+          return;
+        }
+
+        const { latitude: lat, longitude: lng, postcode } = json.result;
+
+        const area = whichArea(lat, lng);
+        if (!area) {
+          err.textContent = 'Outside Hampshire boundary';
+          return;
+        }
+
+        // Remove any previous pin
+        removePinMarker();
+
+        // Fly to location
+        map.flyTo([lat, lng], 14, { duration: 1.2 });
+
+        // Pin marker — persists until cleared or new search
+        pinMarker = L.circleMarker([lat, lng], {
+          radius: 8, color: '#fff', fillColor: '#4d9de0', fillOpacity: 0.9, weight: 2,
+        }).bindTooltip(postcode, { permanent: true, direction: 'top', offset: [0, -10] })
+          .addTo(map);
+
+        // Update input to show formatted postcode
+        input.value = postcode;
+        clearBtn.style.display = '';
+
+        // GA4 — outward code only
+        window.gtag?.('event', 'postcode_search', {
+          outward_code: raw.slice(0, raw.length - 3),
+          area,
+        });
+
+      } catch {
+        err.textContent = 'Lookup failed — try again';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    btn.addEventListener('click', search);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+  }
+  initPostcodeSearch();
+
   // ── About overlay ──────────────────────────────────────────────
   const overlay = document.getElementById('about-overlay');
   document.getElementById('btn-about').addEventListener('click', () => {
@@ -604,34 +701,9 @@ document.addEventListener('DOMContentLoaded', function () {
     localStorage.setItem('rm-about-seen', '1');
   }
 
-  // ── Probe available years ──────────────────────────────────────
-  // HEAD-check each candidate year; remove buttons for 404s
-  async function probeYears() {
-    const BASE = '/dft/road-accidents-safety-data/dft-road-casualty-statistics-collision-';
-    const results = await Promise.all(
-      [...YEARS].map(y =>
-        fetch(`${BASE}${y}.csv`, { method: 'HEAD' })
-          .then(r => r.ok ? y : null)
-          .catch(() => null)
-      )
-    );
-    const available = results.filter(y => y !== null);
-    if (available.length && available.length !== YEARS.length) {
-      YEARS.length = 0;
-      available.forEach(y => YEARS.push(y));
-      // Clamp selected year to what's available
-      if (!YEARS.includes(st.selectedYear)) {
-        st.selectedYear = YEARS[YEARS.length - 1];
-      }
-      buildYearSelector();
-    }
-  }
-
   // ── Init ───────────────────────────────────────────────────────
   buildYearSelector();
   status(`Loading ${st.selectedYear} data…`);
-  // Probe years in parallel with the first data load
-  probeYears();
   loadYear(st.selectedYear);
 
 }); // end DOMContentLoaded
