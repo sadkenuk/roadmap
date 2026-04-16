@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RoadMap — New Forest Road Safety</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"/>
@@ -32,6 +33,7 @@
     <div class="hstat"><div class="hstat-dot slight"></div><div class="hstat-label">Slight</div><div class="hstat-val" id="hs-slight">—</div></div>
   </div>
   <div id="header-right">
+    <button class="tag tag-about" id="btn-about" title="About RoadMap">About</button>
     <span class="tag tag-area">Hampshire</span>
     <span class="tag tag-beta">Beta</span>
   </div>
@@ -47,7 +49,7 @@
 
       <div class="layer-item active" id="layer-stats19">
         <div class="layer-header">
-          <div class="layer-toggle" id="toggle-stats19"></div>
+          <div class="layer-toggle layer-toggle-disabled" id="toggle-stats19"></div>
           <div class="layer-name">STATS19 Collisions</div>
           <span class="layer-badge badge-active">DfT</span>
         </div>
@@ -81,7 +83,7 @@
           <div class="data-note">
             Injury collisions from the
             <a href="https://www.gov.uk/government/statistical-data-sets/road-safety-open-data" target="_blank">DfT STATS19 open dataset</a>,
-            filtered to Hampshire. Open Government Licence.
+            filtered to Hampshire, Southampton &amp; Portsmouth. Open Government Licence.
           </div>
         </div>
       </div>
@@ -94,8 +96,8 @@
 
     <div class="sidebar-section">
       <div class="section-label">Coming Soon</div>
+      <div class="cs-item"><div class="cs-icon">🦌</div><div class="cs-name">Animal Road Incidents</div><div class="cs-tag">PLANNED</div></div>
       <div class="cs-item"><div class="cs-icon">🚗</div><div class="cs-name">Speedwatch Sessions</div><div class="cs-tag">PLANNED</div></div>
-      <div class="cs-item"><div class="cs-icon">💨</div><div class="cs-name">Air Quality Sensors</div><div class="cs-tag">PLANNED</div></div>
       <div class="cs-item"><div class="cs-icon">🚧</div><div class="cs-name">Street Manager Roadworks</div><div class="cs-tag">PLANNED</div></div>
       <div class="cs-item"><div class="cs-icon">🌡️</div><div class="cs-name">Weather Correlation</div><div class="cs-tag">PLANNED</div></div>
     </div>
@@ -125,6 +127,65 @@
 <div id="statusbar">
   <div id="status-msg"><span class="pulse"></span>Ready — select a year and click Load Data</div>
   <div class="status-coord" id="coord"></div>
+</div>
+
+<!-- ── About overlay ──────────────────────────────────────────── -->
+<div id="about-overlay" class="about-overlay hidden" role="dialog" aria-modal="true" aria-label="About RoadMap">
+  <div class="about-panel">
+    <button class="about-close" id="about-close" aria-label="Close">✕</button>
+
+    <div class="about-logo">Road<span>Map</span></div>
+    <div class="about-tagline">Hampshire Road Safety — Visualised</div>
+
+    <div class="about-body">
+
+      <h3>What is RoadMap?</h3>
+      <p>
+        RoadMap is a free, community-built tool that lets you explore road collision data across
+        <strong>Hampshire, Southampton and Portsmouth</strong> on an interactive map. You can filter
+        by year and severity, compare year-on-year trends, and drill into individual incidents.
+      </p>
+
+      <h3>Where does the data come from?</h3>
+      <p>
+        All data comes from <strong>DfT STATS19</strong> — the UK government's official record of
+        injury road collisions reported to police. It is published as open data by the
+        <a href="https://www.gov.uk/government/statistical-data-sets/road-safety-open-data" target="_blank">
+        Department for Transport</a> under the Open Government Licence.
+      </p>
+      <p>
+        <strong>This is historical data, not live.</strong> Each year's dataset is typically published
+        12–18 months after the year ends once police records are verified and processed. The data
+        shown reflects collisions where at least one person was injured — minor damage-only incidents
+        are not recorded.
+      </p>
+
+      <h3>Who built this?</h3>
+      <p>
+        RoadMap is part of the <strong>sadken.co.uk</strong> community data project — a set of
+        open tools built to help residents, parish councils and local groups make better
+        evidence-based decisions using public data that already exists but is hard to access.
+      </p>
+      <p>
+        It was built as a volunteer effort for the <strong>Lyndhurst &amp; New Forest</strong>
+        community, with no commercial interest. The code is open and the data is yours.
+      </p>
+
+      <h3>Limitations</h3>
+      <ul>
+        <li>Only injury collisions attended by police are recorded — near-misses and damage-only incidents are excluded.</li>
+        <li>Location precision depends on police GPS accuracy at the time of recording.</li>
+        <li>Data is updated annually, not in real time.</li>
+        <li>This tool is in <strong>Beta</strong> — more data layers are planned.</li>
+      </ul>
+
+      <div class="about-links">
+        <a href="https://blog.sadken.co.uk" target="_blank" class="about-btn">Read the blog</a>
+        <a href="https://www.gov.uk/government/statistical-data-sets/road-safety-open-data" target="_blank" class="about-btn about-btn-ghost">DfT Open Data</a>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <script src="js/app.js"></script>

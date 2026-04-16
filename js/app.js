@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── Constants ──────────────────────────────────────────────────
   const LYNDHURST = [50.8726, -1.5707];
-  const YEARS     = [2019, 2020, 2021, 2022, 2023, 2024];
+  const YEARS     = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 
   // Expanded to cover all of Hampshire
   const BB = { n: 51.35, s: 50.68, e: -0.87, w: -1.95 };
@@ -102,12 +102,17 @@ document.addEventListener('DOMContentLoaded', function () {
   const map = L.map('map', {
     center:     LYNDHURST,
     zoom:       10,
-    minZoom:    9,        // far enough out to see all of Hampshire
+    minZoom:    7,        // will be tightened dynamically below
     maxZoom:    18,
     maxBounds:  BOUNDS,
     maxBoundsViscosity: 1.0,
     zoomControl: false,
     attributionControl: true,
+  });
+
+  // Lock minZoom so user can't zoom out beyond Hampshire boundary
+  map.whenReady(() => {
+    map.setMinZoom(map.getBoundsZoom(BOUNDS));
   });
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -167,16 +172,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ── Layer toggle ───────────────────────────────────────────────
-  document.getElementById('toggle-stats19').addEventListener('click', e => {
-    e.stopPropagation();
-    st.layerOn = !st.layerOn;
-    document.getElementById('layer-stats19').classList.toggle('active', st.layerOn);
-    ['fatal', 'serious', 'slight'].forEach(k => {
-      if (!mGroups[k]) return;
-      st.layerOn && st.vis[k] ? mGroups[k].addTo(map) : map.removeLayer(mGroups[k]);
-    });
-  });
+  // ── Layer toggle — disabled (only one layer currently) ────────
 
   ['fatal', 'serious', 'slight'].forEach(k => {
     document.getElementById(`sev-${k}`).addEventListener('click', () => {
@@ -233,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const c = st.yearCounts[year] || { fatal: 0, serious: 0, slight: 0 };
     const total = c.fatal + c.serious + c.slight;
-    status(`${total.toLocaleString()} collisions in ${year} · Hampshire`);
+    status(`${total.toLocaleString()} collisions in ${year} · Hampshire inc. Southampton &amp; Portsmouth`);
 
     setLoading(false);
     st.loading = false;
@@ -450,6 +446,27 @@ document.addEventListener('DOMContentLoaded', function () {
       loadYear(st.selectedYear);
     }
   });
+
+  // ── About overlay ─────────────────────────────────────────────
+  const overlay = document.getElementById('about-overlay');
+  document.getElementById('btn-about').addEventListener('click', () => {
+    overlay.classList.remove('hidden');
+  });
+  document.getElementById('about-close').addEventListener('click', () => {
+    overlay.classList.add('hidden');
+  });
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.add('hidden');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') overlay.classList.add('hidden');
+  });
+
+  // Show about on first visit
+  if (!localStorage.getItem('rm-about-seen')) {
+    overlay.classList.remove('hidden');
+    localStorage.setItem('rm-about-seen', '1');
+  }
 
   // ── Init ───────────────────────────────────────────────────────
   buildYearSelector();
