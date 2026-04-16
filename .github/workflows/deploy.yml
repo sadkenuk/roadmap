@@ -21,10 +21,34 @@ jobs:
           key:      ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
-
-            # Pull latest code
             cd ~/apps/roadmap
             git pull origin main
-
-            # Run the universal deploy script
             ~/homeserver/deploy.sh ~/apps/roadmap
+
+      - name: Purge Cloudflare cache
+        env:
+          CF_TOKEN: ${{ secrets.CF_DNS_API_TOKEN }}
+        run: |
+          # Look up zone ID for sadken.co.uk
+          ZONE_ID=$(curl -sf "https://api.cloudflare.com/client/v4/zones?name=sadken.co.uk" \
+            -H "Authorization: Bearer ${CF_TOKEN}" \
+            -H "Content-Type: application/json" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['result'][0]['id'])")
+
+          # Purge all cached assets for roadmap.sadken.co.uk
+          RESULT=$(curl -sf -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{
+              "files": [
+                "https://roadmap.sadken.co.uk/",
+                "https://roadmap.sadken.co.uk/index.html",
+                "https://roadmap.sadken.co.uk/js/app.js",
+                "https://roadmap.sadken.co.uk/css/style.css",
+                "https://roadmap.sadken.co.uk/data/hampshire.geojson",
+                "https://roadmap.sadken.co.uk/favicon.svg"
+              ]
+            }' \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print('✓ Cache purged' if d['success'] else f'✗ Purge failed: {d}')")
+          echo "$RESULT"
