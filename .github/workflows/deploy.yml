@@ -29,13 +29,24 @@ jobs:
         env:
           CF_TOKEN: ${{ secrets.CF_DNS_API_TOKEN }}
         run: |
-          # Look up zone ID for sadken.co.uk
-          ZONE_ID=$(curl -sf "https://api.cloudflare.com/client/v4/zones?name=sadken.co.uk" \
-            -H "Authorization: Bearer ${CF_TOKEN}" \
-            -H "Content-Type: application/json" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['result'][0]['id'])")
+          if [ -z "${CF_TOKEN}" ]; then
+            echo "⚠ CF_DNS_API_TOKEN secret not set — skipping cache purge"
+            exit 0
+          fi
 
-          # Purge all cached assets for roadmap.sadken.co.uk
+          # Look up zone ID for sadken.co.uk
+          ZONE_RESP=$(curl -sf "https://api.cloudflare.com/client/v4/zones?name=sadken.co.uk" \
+            -H "Authorization: Bearer ${CF_TOKEN}" \
+            -H "Content-Type: application/json" || echo "{}")
+          ZONE_ID=$(echo "$ZONE_RESP" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['result'][0]['id'] if d.get('result') else '')" 2>/dev/null || echo "")
+
+          if [ -z "${ZONE_ID}" ]; then
+            echo "⚠ Could not resolve Cloudflare zone ID — skipping cache purge"
+            exit 0
+          fi
+
+          # Purge specific assets for roadmap.sadken.co.uk
           RESULT=$(curl -sf -X POST \
             "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/purge_cache" \
             -H "Authorization: Bearer ${CF_TOKEN}" \
@@ -50,5 +61,6 @@ jobs:
                 "https://roadmap.sadken.co.uk/favicon.svg"
               ]
             }' \
-            | python3 -c "import sys,json; d=json.load(sys.stdin); print('✓ Cache purged' if d['success'] else f'✗ Purge failed: {d}')")
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print('✓ Cache purged' if d.get('success') else f'✗ Purge failed: {d}')" \
+            2>/dev/null || echo "⚠ Purge request failed")
           echo "$RESULT"
