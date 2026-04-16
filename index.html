@@ -174,6 +174,20 @@
   <div class="status-coord" id="coord"></div>
 </div>
 
+<!-- ── Data unavailable overlay ───────────────────────────────── -->
+<div id="error-overlay" class="error-overlay hidden" role="alert">
+  <div class="error-panel">
+    <div class="error-icon">⚠</div>
+    <div class="error-title">Data Temporarily Unavailable</div>
+    <div class="error-msg" id="error-msg">The DfT road safety data service is currently unavailable.</div>
+    <p class="error-detail">This is a temporary issue with the government data source, not with RoadMap. Please try again in a few minutes.</p>
+    <div class="error-actions">
+      <button class="error-retry" id="error-retry">Try Again</button>
+      <button class="error-dismiss" id="error-dismiss">Dismiss</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── About overlay ──────────────────────────────────────────── -->
 <div id="about-overlay" class="about-overlay hidden" role="dialog" aria-modal="true" aria-label="About RoadMap">
   <div class="about-panel">

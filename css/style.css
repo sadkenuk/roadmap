@@ -310,6 +310,58 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg);
 }
 .area-btn.off .area-count { color: var(--text-dim); }
 
+/* ── Sidebar hidden state (error with no data) ── */
+#sidebar.sidebar-hidden { display: none; }
+
+/* ── DATA ERROR OVERLAY ── */
+.error-overlay {
+  position: fixed; inset: 0; z-index: 2500;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8,12,16,0.7); backdrop-filter: blur(4px);
+  padding: 20px; transition: opacity 0.2s;
+}
+.error-overlay.hidden { opacity: 0; pointer-events: none; }
+
+.error-panel {
+  background: var(--panel); border: 1px solid rgba(255,59,48,0.3);
+  border-radius: 10px; max-width: 380px; width: 100%;
+  padding: 28px 28px 24px; text-align: center;
+  box-shadow: 0 0 40px rgba(255,59,48,0.12), 0 16px 48px rgba(0,0,0,0.5);
+}
+.error-icon {
+  font-size: 32px; margin-bottom: 12px; color: var(--fatal);
+  text-shadow: 0 0 20px var(--fatal-glow);
+}
+.error-title {
+  font-family: var(--font-head); font-weight: 700; font-size: 18px;
+  letter-spacing: 0.05em; text-transform: uppercase; color: #fff;
+  margin-bottom: 8px;
+}
+.error-msg {
+  font-family: var(--font-mono); font-size: 11px; color: var(--fatal);
+  margin-bottom: 12px;
+}
+.error-detail {
+  font-size: 12px; color: var(--text-muted); line-height: 1.6;
+  margin-bottom: 20px;
+}
+.error-actions { display: flex; gap: 10px; justify-content: center; }
+.error-retry {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 8px 18px; border-radius: 5px;
+  background: var(--accent); color: #fff; border: none; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.error-retry:hover { opacity: 0.85; }
+.error-dismiss {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 8px 14px; border-radius: 5px;
+  background: transparent; color: var(--text-muted);
+  border: 1px solid var(--border-light); cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.error-dismiss:hover { color: var(--text); border-color: var(--text-muted); }
+
 /* ── ABOUT OVERLAY ── */
 .about-overlay {
   position: fixed; inset: 0; z-index: 3000;
@@ -408,7 +460,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg);
     position: fixed;
     bottom: 0; left: 0; right: 0;
     width: 100%; min-width: unset;
-    max-height: 88vh;
+    height: 88vh; max-height: 88vh;
     border-right: none;
     border-top: 1px solid var(--border-light);
     border-radius: 14px 14px 0 0;
@@ -422,10 +474,8 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg);
     box-shadow: 0 -8px 32px rgba(0,0,0,0.6);
   }
 
-  #sidebar.drawer-open {
-    transform: translateY(0);
-    height: 88vh;
-  }
+  #sidebar.drawer-open   { transform: translateY(0); }
+  #sidebar.drawer-hidden { transform: translateY(calc(100% - 52px)); }
 
   /* Drag handle */
   .mobile-handle {

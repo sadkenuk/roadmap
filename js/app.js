@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── Constants ──────────────────────────────────────────────────
   const LYNDHURST  = [50.8726, -1.5707];
-  const YEARS      = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
+  const YEARS      = [2019, 2020, 2021, 2022, 2023, 2024]; // 2025 not yet published by DfT
   const AREAS      = ['hampshire', 'southampton', 'portsmouth'];
   const AREA_LABEL = { hampshire: 'Hampshire', southampton: 'Southampton City', portsmouth: 'Portsmouth City' };
 
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── State ──────────────────────────────────────────────────────
   const st = {
-    selectedYear: YEARS[YEARS.length - 1],
+    selectedYear: 2024,
     vis:          { fatal: true, serious: true, slight: true },
     layerOn:      true,
     areaOn:       { hampshire: true, southampton: true, portsmouth: true },
@@ -268,7 +268,10 @@ document.addEventListener('DOMContentLoaded', function () {
         setProgress(95);
       }
     } catch (err) {
-      status(`⚠ Error: ${err.message}`, true);
+      setLoading(false);
+      st.loading = false;
+      showError(err.message);
+      return;
     }
 
     // Add map layers for all active area × severity combinations
@@ -293,6 +296,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     setLoading(false);
     st.loading = false;
+    hasLoadedData = true;
+    retryBtn.disabled = false;
+    retryBtn.textContent = 'Try Again';
     window.dispatchEvent(new Event('roadmap:dataLoaded'));
 
     // GA4 event
@@ -573,27 +579,122 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // ── Error overlay ─────────────────────────────────────────────
+  const errorOverlay = document.getElementById('error-overlay');
+  const errorMsg     = document.getElementById('error-msg');
+  const retryBtn     = document.getElementById('error-retry');
+  let   hasLoadedData = false;
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorOverlay.classList.remove('hidden');
+    if (!hasLoadedData) {
+      document.getElementById('sidebar').classList.add('sidebar-hidden');
+    }
+  }
+
+  function hideError() {
+    errorOverlay.classList.add('hidden');
+    document.getElementById('sidebar').classList.remove('sidebar-hidden');
+  }
+
+  document.getElementById('error-dismiss').addEventListener('click', hideError);
+  retryBtn.addEventListener('click', () => {
+    retryBtn.disabled = true;
+    retryBtn.textContent = 'Retrying…';
+    hideError();
+    loadYear(st.selectedYear);
+  });
+
   // ── Mobile bottom sheet drawer ────────────────────────────────
   function initMobileDrawer() {
     const sidebar = document.getElementById('sidebar');
     const handle  = document.getElementById('mobile-handle');
     if (!handle) return;
 
-    const toggle = () => sidebar.classList.toggle('drawer-open');
+    // Three states: 'hidden' (just handle), 'peek' (controls visible), 'open' (full)
+    let drawerState = 'peek';
 
-    handle.addEventListener('click', toggle);
+    function snapOffset(s) {
+      const h = sidebar.offsetHeight;
+      if (s === 'open')   return 0;
+      if (s === 'peek')   return h - 200;
+      /* hidden */        return h - 52;
+    }
 
-    // Tapping the first sidebar section (year/layer area) also toggles when peeking
+    function setState(s, animate = true) {
+      drawerState = s;
+      if (!animate) sidebar.style.transition = 'none';
+      sidebar.style.transform = '';
+      sidebar.classList.toggle('drawer-open',   s === 'open');
+      sidebar.classList.toggle('drawer-hidden', s === 'hidden');
+      if (!animate) requestAnimationFrame(() => { sidebar.style.transition = ''; });
+    }
+
+    // Tap: hidden→peek, peek→open, open→peek
+    function tapToggle() {
+      setState(drawerState === 'open' ? 'peek' : drawerState === 'hidden' ? 'peek' : 'open');
+    }
+
+    // ── Touch drag ──────────────────────────────────────
+    let startY = 0, startOffset = 0, lastY = 0, lastT = 0, vel = 0, didDrag = false;
+
+    handle.addEventListener('touchstart', e => {
+      startY      = e.touches[0].clientY;
+      startOffset = snapOffset(drawerState);
+      lastY       = startY;
+      lastT       = Date.now();
+      vel         = 0;
+      didDrag     = false;
+      sidebar.style.transition = 'none';
+    }, { passive: true });
+
+    handle.addEventListener('touchmove', e => {
+      const dy  = e.touches[0].clientY - startY;
+      const now = Date.now();
+      const dt  = now - lastT;
+      if (dt > 0) vel = (e.touches[0].clientY - lastY) / dt;
+      lastY = e.touches[0].clientY;
+      lastT = now;
+      if (Math.abs(dy) > 4) didDrag = true;
+      if (!didDrag) return;
+      const h       = sidebar.offsetHeight;
+      const clamped = Math.max(0, Math.min(h - 52, startOffset + dy));
+      sidebar.style.transform = `translateY(${clamped}px)`;
+    }, { passive: true });
+
+    handle.addEventListener('touchend', e => {
+      sidebar.style.transition = '';
+      if (!didDrag) { tapToggle(); return; }
+      const dy         = e.changedTouches[0].clientY - startY;
+      const currentOff = startOffset + dy;
+      const FLICK      = 0.35;
+
+      let next;
+      if (vel > FLICK) {
+        next = drawerState === 'open' ? 'peek' : 'hidden';
+      } else if (vel < -FLICK) {
+        next = drawerState === 'hidden' ? 'peek' : 'open';
+      } else {
+        const states = ['open', 'peek', 'hidden'];
+        next = states.reduce((best, s) =>
+          Math.abs(currentOff - snapOffset(s)) < Math.abs(currentOff - snapOffset(best)) ? s : best
+        );
+      }
+      setState(next);
+    });
+
+    // Tapping the sidebar body (when peeking) also opens it
     sidebar.addEventListener('click', e => {
       if (window.innerWidth > 680) return;
-      if (sidebar.classList.contains('drawer-open')) return;
+      if (drawerState === 'open') return;
       if (e.target.closest('.year-btn, .sev-btn, .area-btn, button, input, a')) return;
-      toggle();
+      tapToggle();
     });
 
     // Auto-expand after data loads
     window.addEventListener('roadmap:dataLoaded', () => {
-      if (window.innerWidth <= 680) sidebar.classList.add('drawer-open');
+      if (window.innerWidth <= 680) setState('open');
     });
   }
   initMobileDrawer();
